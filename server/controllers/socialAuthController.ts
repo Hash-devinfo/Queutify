@@ -47,80 +47,96 @@ export const generateAuthUrl = async (
 ): Promise<void> => {
   try {
     const { platform } = req.params;
-    const profileId = await getOrCreateZernioProfile(req.user)
+    const profileId = await getOrCreateZernioProfile(req.user);
 
-    const origin = req.headers.origin
-    const redirectUrl = `${origin}/accounts`
+    const origin = req.headers.origin;
+    const redirectUrl = `${origin}/accounts`;
 
     const result = await zernio.connect.getConnectUrl({
-        path:{platform: platform as any},
-        query:{
-            profileId,
-            redirectUrl: redirectUrl
-        }
-    })
-    const data = result.data as any
-    console.log('getConnect response:', JSON.stringify(data, null, 2))
+      path: { platform: platform as any },
+      query: {
+        profileId,
+        redirectUrl: redirectUrl,
+      },
+    });
+    const data = result.data as any;
+    console.log("getConnect response:", JSON.stringify(data, null, 2));
 
-    const authUrl = data.authUrl
-    if(!authUrl){
-        throw new Error(`Zernio returned no authUrl, Full response: ${JSON.stringify(data)} ` )
+    const authUrl = data.authUrl;
+    if (!authUrl) {
+      throw new Error(
+        `Zernio returned no authUrl, Full response: ${JSON.stringify(data)} `,
+      );
     }
-    res.json({url: authUrl})
-} catch (error: unknown) {
+    res.json({ url: authUrl });
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Server Error";
-    res.status(500).json({message});
+    res.status(500).json({ message });
   }
 };
-
 
 // Sync connected accounts from Zernio into MongoDb
 // GEt /api/auth/sync
 
-export const syncAccounts= async (req: AuthRequest, res:Response): Promise<void> => {
-    try {
-        const profileId= await getOrCreateZernioProfile(req.user)
-        const result = await zernio.accounts.listAccounts({
-            query: {profileId} as any
-        })
+export const syncAccounts = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const profileId = await getOrCreateZernioProfile(req.user);
+    const result = await zernio.accounts.listAccounts({
+      query: { profileId } as any,
+    });
 
-        const data= result.data as any;
-        const zernioAccounts: any[] = data?.accounts || (Array.isArray(data)? data : [])
-        const supportedPlatforms= ['twitter','linkedin','facebook','instagram']
-        const syncedAccounts=[]
-        for(const zAccount of zernioAccounts){
-            const zid= zAccount._id || zAccount.id
-            if(!zid){
-                console.warn("Skipping account with no ID", zAccount)
-                continue;
-            }
+    const data = result.data as any;
+    const zernioAccounts: any[] =
+      data?.accounts || (Array.isArray(data) ? data : []);
+    const supportedPlatforms = ["twitter", "linkedin", "facebook", "instagram"];
+    const syncedAccounts = [];
+    for (const zAccount of zernioAccounts) {
+      const zid = zAccount._id || zAccount.id;
+      if (!zid) {
+        console.warn("Skipping account with no ID", zAccount);
+        continue;
+      }
 
-            const rawPlatform = (zAccount.platform || zAccount.type || "").toLowerCase();
-            const normalizedPlatform = supportedPlatforms.find((p)=>rawPlatform.includes(p))
-            if(!normalizedPlatform){
-                console.log(`Skipping unsupported platform:"${rawPlatform}"`)
-                continue;
-            }
+      const rawPlatform = (
+        zAccount.platform ||
+        zAccount.type ||
+        ""
+      ).toLowerCase();
+      const normalizedPlatform = supportedPlatforms.find((p) =>
+        rawPlatform.includes(p),
+      );
+      if (!normalizedPlatform) {
+        console.log(`Skipping unsupported platform:"${rawPlatform}"`);
+        continue;
+      }
 
-            const account = await Account.findOneAndUpdate(
-                {zernioAccountId: zid},
-                {
-                    user:req.user._id,
-                    platform: normalizedPlatform,
-                    handle: zAccount.username || zAccount.name || zAccount.handle || "Unknown",
-                    zernioAccountId:zid,
-                    status:"connected",
-                    avatarUrl: zAccount.avatarUrl || zAccount.picture || zAccount.profile_image_url,
-                 },
-                 {
-                    upsert: true, returnDocument:'after'
-                 }
-            )
-            syncedAccounts.push(account)
-        }
-        res.json(syncedAccounts)
-    } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Server Error";
-        res.status(500).json({message});
+      const account = await Account.findOneAndUpdate(
+        { zernioAccountId: zid },
+        {
+          user: req.user._id,
+          platform: normalizedPlatform,
+          handle:
+            zAccount.username || zAccount.name || zAccount.handle || "Unknown",
+          zernioAccountId: zid,
+          status: "connected",
+          avatarUrl:
+            zAccount.avatarUrl ||
+            zAccount.picture ||
+            zAccount.profile_image_url,
+        },
+        {
+          upsert: true,
+          returnDocument: "after",
+        },
+      );
+      syncedAccounts.push(account);
     }
-}
+    res.json(syncedAccounts);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Server Error";
+    res.status(500).json({ message });
+  }
+};
