@@ -6,6 +6,7 @@ import {
   Wand2Icon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Sidebar = ({
   isOpen,
@@ -14,12 +15,7 @@ const Sidebar = ({
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
 }) => {
-  const { logout, user } = {
-    logout: () => {
-      window.location.assign("/");
-    },
-    user: { name: "Hash", email: "123@example.com" },
-  };
+  const { logout, user } = useAuth()
   const location = useLocation();
   const navItems = [
     { name: "Dashboard", icon: LayoutDashboardIcon, path: "/dashboard" },
