@@ -56,8 +56,9 @@ const Accounts = () => {
     try {
       const {data}= await api.get(`/api/oauth/${platformId}/url`)
       window.location.href= data.url
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message ||  `Failed to connect ${platformId}`)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(err.response?.data?.message || err.message ||  `Failed to connect ${platformId}`)
       setConnecting(null)
     }
   }
@@ -67,8 +68,9 @@ const Accounts = () => {
       await api.delete(`/api/accounts/${accountId}`) 
       toast.success("Account disconnected")
       await fetchAccounts()
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error.message || "Failed to disconnect account")
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(err.response?.data?.message || err.message || "Failed to disconnect account")
     }
   }
 

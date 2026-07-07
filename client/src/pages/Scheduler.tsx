@@ -76,7 +76,7 @@ const Scheduler = () => {
       toast.error("Select at least one Platform")
       return
     }
-    if(!scheduledDate || scheduledTime){
+    if(!scheduledDate || !scheduledTime){
       toast.error("Select Date and Time")
       return
     }
@@ -101,9 +101,10 @@ const Scheduler = () => {
     setSelectedPlatforms([])
     setMediaFile(null)
     fetchPosts()
-  }catch(error:any){
-    toast.error(error?.response?.data?.message || error.message)
-  }finally{
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    toast.error(err.response?.data?.message || err.message || "An error occurred")
+  } finally {
     setLoading(false)
   }
   };

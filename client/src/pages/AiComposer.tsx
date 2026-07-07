@@ -52,9 +52,10 @@ useEffect(() => {
       setGenerations([data, ...generations])
       setActiveScheduler(data)
       toast.success("Content generated!")
-    } catch (error:any) {
-    toast.error(error?.response?.data?.message || error?.message)
-    }finally{
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(err.response?.data?.message || err.message || "Failed to generate content")
+    } finally {
       setLoading(false)
     }
   };
