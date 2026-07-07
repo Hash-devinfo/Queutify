@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dummyPostsData, PLATFORMS } from "../assets/assets";
+import {  PLATFORMS } from "../assets/assets";
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
@@ -9,6 +9,8 @@ import {
   SendIcon,
   XIcon,
 } from "lucide-react";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 
 const Scheduler = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -22,12 +24,17 @@ const Scheduler = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchPosts = async () => {
-    setPosts(dummyPostsData);
+    try {
+      const {data}= await api.get('/api/posts')
+      setPosts(data)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || error.message)
+    }
   };
 
   useEffect(() => {
     (async () => await fetchPosts())();
-    const interval = setInterval(async () => await fetchPosts(), 1000);
+    const interval = setInterval(async () => await fetchPosts(), 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -65,35 +72,46 @@ const Scheduler = () => {
 
   const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-
-      const newPost = {
-        // ✅ #4: generate a temporary unique _id so key={post._id} never gets undefined
-        _id: crypto.randomUUID(),
-        content,
-        platforms: selectedPlatforms,
-        // ✅ #3: use scheduledFor to match what the queue list reads
-        scheduledFor: `${scheduledDate}T${scheduledTime}`,
-        status: "scheduled",
-      };
-      setPosts((prev) => [...prev, newPost]);
-
-      // reset form
-      setContent("");
-      setSelectedPlatforms([]);
-      setScheduledDate("");
-      setScheduledTime("");
-      // ✅ #2: also clear media on submit
-      clearMedia();
-    }, 1000);
+    if(selectedPlatforms.length === 0){
+      toast.error("Select at least one Platform")
+      return
+    }
+    if(!scheduledDate || scheduledTime){
+      toast.error("Select Date and Time")
+      return
+    }
+    if(selectedPlatforms.includes('instagram')&& !mediaFile){
+      toast.error("Instagram requires an image or video")
+      return
+    }
+    const scheduledFor= new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+    const formData = new FormData()
+    formData.append("content",content)
+    formData.append("scheduledFor",scheduledFor)
+    formData.append("status", "scheduled")
+    formData.append("platforms", JSON.stringify(selectedPlatforms))
+    if(mediaFile) formData.append("media",mediaFile)
+    setLoading(true) 
+  try{
+    await api.post("/api/posts", formData, {headers:{"Content-Type":"multipart/form-data"}})
+    toast.success("Post scheduled")
+    setContent("")
+    setScheduledDate("")
+    setScheduledTime("")
+    setSelectedPlatforms([])
+    setMediaFile(null)
+    fetchPosts()
+  }catch(error:any){
+    toast.error(error?.response?.data?.message || error.message)
+  }finally{
+    setLoading(false)
+  }
   };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Compose panel */}
-      <div className="w-full lg:w-[460px] shrink-0">
+      <div className="w-full lg:w-115 shrink-0">
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <h2 className="text-lg text-slate-700">Compose Post</h2>
